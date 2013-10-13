@@ -1,6 +1,6 @@
 (ns snake.core
   (:require [cljs.core.async :as async
-             :refer [<! >! chan timeout alts!]]
+             :refer [<! >! chan timeout alts! dropping-buffer]]
             [snake.window :as window]
             [clojure.browser.event :as event]
             [goog.events.KeyHandler :as key-handler]
@@ -8,7 +8,7 @@
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (def keyboard (goog.events.KeyHandler. js/document))
-(def keyboard-chan (chan))
+(def keyboard-chan (chan 1))
 
 (defn- push-key [key]
   (let [key-number (.-keyCode key)
@@ -21,7 +21,7 @@
       (go (>! keyboard-chan key-number)))))
   
 (defn- keyboard-listen []
-  (event/listen keyboard "key" push-key))
+  (go (event/listen keyboard "key" push-key)))
                                     
 (defn- adjust-coords [keyboard-input [x y]]
   (cond
@@ -30,21 +30,22 @@
    (= keyboard-input key-codes/DOWN) [x (inc y)]
    (= keyboard-input key-codes/LEFT) [(dec x) y]))
 
-(defn game-loop [snake [x y]]
+(defn- game-loop [snake [initial-x initial-y]]
     (go
-     (>! snake [[x y]])
-     (loop [x x
-            y y]
-       (>! snake [[x y]])
-       (let [[val chan] (alts! [snake keyboard-chan])]
-         (if (= chan keyboard-chan)
-           (let [[new-x new-y] (adjust-coords val [x y])]
-             (recur new-x new-y))
-           (recur (dec x) y))))))
-
+     (>! snake [[initial-x initial-y]])
+     (loop [x initial-x
+            y initial-y
+            direction (<! keyboard-chan)]
+       (let [[next-x next-y] (adjust-coords direction [x y])]
+         (>! snake [[next-x next-y]])
+         (<! (timeout 300))
+         (recur next-x next-y 
+                (let [[val chan] (alts! [keyboard-chan (timeout 1)])]
+                  (if (= chan keyboard-chan)
+                    val
+                    direction)))))))
 
 (defn ^:export init []
-  (let [snake (chan)
-        coords (snake.window/init snake)]
+  (let [snake (chan)]
     (keyboard-listen)
     (game-loop snake (snake.window/init snake))))
