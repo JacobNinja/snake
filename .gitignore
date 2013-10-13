@@ -2,6 +2,8 @@
 /lib
 /classes
 /checkouts
+/resources/public/js/dev.js
+/resources/public/js/prod.js
 pom.xml
 pom.xml.asc
 *.jar
