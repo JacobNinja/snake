@@ -40,8 +40,16 @@
                   (= direction key-codes/LEFT) [(dec x) y])
                  (take (dec (env :length)) coords)))))
 
+(defn- valid-direction? [current-direction next-direction]
+  (let [opposites [[key-codes/UP key-codes/DOWN]
+                   [key-codes/LEFT key-codes/RIGHT]]]
+    (and (not (= current-direction next-direction))
+         (not (some #(or (= [current-direction next-direction] %)
+                         (= [next-direction current-direction] %)) opposites)))))
+
 (defn- adjust-direction [[next-direction chan] env]
-  (if (= chan keyboard-chan)
+  (if (and (= chan keyboard-chan) 
+           (valid-direction? (env :direction) next-direction))
     (assoc env :direction next-direction)
     env))
 
