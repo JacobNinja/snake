@@ -52,7 +52,6 @@
                   :fruit (remove (set fruit-collisions) (env :fruit))})
       env)))
     
-
 (defn- game-loop [snake env]
   (go
    (>! snake env)
@@ -68,7 +67,7 @@
 (defn- init-env [env]
   (let [[height width] (map deref (env :dimensions))]
     (merge env {:coords [(random-coords height width)]
-                :fruit [(random-coords height width)]
+                :fruit (repeatedly 3 #(random-coords height width))
                 :length 1})))
            
 (defn ^:export init []
