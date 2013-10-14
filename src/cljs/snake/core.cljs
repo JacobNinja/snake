@@ -79,7 +79,7 @@
                          adjust-coords
                          boundary-check
                          snake-collision-check)]
-       (if (env :game-over)
+       (if (next-env :game-over)
          (js/alert (str "Game over!" \newline (env :game-over)))
          (recur next-env))))))
        
