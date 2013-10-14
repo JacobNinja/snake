@@ -1,6 +1,6 @@
 (ns snake.core
   (:require [cljs.core.async :as async
-             :refer [<! >! chan timeout alts! dropping-buffer]]
+             :refer [<! >! chan timeout alts!]]
             [snake.window :as window]
             [clojure.browser.event :as event]
             [goog.events.KeyHandler :as key-handler]
@@ -9,6 +9,10 @@
 
 (def keyboard (goog.events.KeyHandler. js/document))
 (def keyboard-chan (chan 1))
+
+(defn- random-coords [height width]
+  [(rand-nth (range width))
+   (rand-nth (range height))])
 
 (defn- push-key [key]
   (let [key-number (.-keyCode key)
@@ -23,29 +27,41 @@
 (defn- keyboard-listen []
   (go (event/listen keyboard "key" push-key)))
                                     
-(defn- adjust-coords [keyboard-input [x y]]
-  (cond
-   (= keyboard-input key-codes/UP) [x (dec y)]
-   (= keyboard-input key-codes/RIGHT) [(inc x) y]
-   (= keyboard-input key-codes/DOWN) [x (inc y)]
-   (= keyboard-input key-codes/LEFT) [(dec x) y]))
+(defn- adjust-coords [env]
+  (let [coords (env :coords)
+        [x y] (first coords)
+        direction (env :direction)]
+    (assoc env :coords
+           (cons (cond
+                  (= direction key-codes/UP) [x (dec y)]
+                  (= direction key-codes/RIGHT) [(inc x) y]
+                  (= direction key-codes/DOWN) [x (inc y)]
+                  (= direction key-codes/LEFT) [(dec x) y])
+                 (rest coords)))))
 
-(defn- game-loop [snake [initial-x initial-y]]
-    (go
-     (>! snake [[initial-x initial-y]])
-     (loop [x initial-x
-            y initial-y
-            direction (<! keyboard-chan)]
-       (let [[next-x next-y] (adjust-coords direction [x y])]
-         (>! snake [[next-x next-y]])
-         (<! (timeout 300))
-         (recur next-x next-y 
-                (let [[val chan] (alts! [keyboard-chan (timeout 1)])]
-                  (if (= chan keyboard-chan)
-                    val
-                    direction)))))))
+(defn- adjust-direction [[next-direction chan] env]
+  (assoc env :direction
+         (if (= chan keyboard-chan)
+           next-direction
+           (env :direction))))
 
+(defn- game-loop [snake env]
+  (go
+   (>! snake (env :coords))
+   (loop [env (assoc env :direction (<! keyboard-chan))]
+     (>! snake (env :coords))
+     (<! (timeout 300))
+     (let [keyboard-check (alts! [keyboard-chan (timeout 1)])]
+       (recur (->> env
+                   (adjust-direction keyboard-check)
+                   adjust-coords))))))
+       
+(defn- init-env [env]
+  (let [[height width] (map deref (env :dimensions))]
+    (assoc env :coords [(random-coords height width)])))
+           
 (defn ^:export init []
-  (let [snake (chan)]
+  (let [snake (chan)
+        env (snake.window/init snake)]
     (keyboard-listen)
-    (game-loop snake (snake.window/init snake))))
+    (game-loop snake (init-env env))))

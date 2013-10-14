@@ -26,9 +26,6 @@
                cell-size
                cell-size))
 
-(defn- rand-coords []
-  [(rand-nth (range @width)) (rand-nth (range @height))])
-
 (defn- fill-empty []
   (doseq [y (range @height)
           x (range @width)]
@@ -53,5 +50,5 @@
 (defn init [snake]
   (init-window snake)
   (set! (.-onresize js/window) #(init-window snake))
-  (rand-coords))
+  {:dimensions [height width]})
 
