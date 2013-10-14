@@ -11,6 +11,7 @@
 (def empty-cell-color "#eee")
 (def border-color "#cdcdcd")
 (def snake-cell-color "666")
+(def fruit-cell-color "#cc0000")
 
 (defn- fill-square [x y color]
   (set! (.-fillStyle context) color)
@@ -34,10 +35,12 @@
 (defn- draw-snake-loop [snake]
   (go
    (loop []
-     (let [coords (<! snake)]
+     (let [env (<! snake)]
        (fill-empty)
-       (doseq [[x y] coords]
-         (fill-square x y snake-cell-color)))
+       (doseq [[x y] (env :coords)]
+         (fill-square x y snake-cell-color))
+       (doseq [[x y] (env :fruit)]
+         (fill-square x y fruit-cell-color)))
      (recur))))
 
 (defn- init-window [snake]

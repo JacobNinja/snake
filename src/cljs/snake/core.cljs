@@ -37,28 +37,39 @@
                   (= direction key-codes/RIGHT) [(inc x) y]
                   (= direction key-codes/DOWN) [x (inc y)]
                   (= direction key-codes/LEFT) [(dec x) y])
-                 (rest coords)))))
+                 (take (dec (env :length)) coords)))))
 
 (defn- adjust-direction [[next-direction chan] env]
-  (assoc env :direction
-         (if (= chan keyboard-chan)
-           next-direction
-           (env :direction))))
+  (if (= chan keyboard-chan)
+    (assoc env :direction next-direction)
+    env))
+
+(defn- collision-check [env]
+  (let [fruit-collisions
+        (filter #(= (first (env :coords)) %) (env :fruit))]
+    (if-not (empty? fruit-collisions)
+      (merge env {:length (inc (env :length))
+                  :fruit (remove (set fruit-collisions) (env :fruit))})
+      env)))
+    
 
 (defn- game-loop [snake env]
   (go
-   (>! snake (env :coords))
+   (>! snake env)
    (loop [env (assoc env :direction (<! keyboard-chan))]
-     (>! snake (env :coords))
+     (>! snake env)
      (<! (timeout 300))
      (let [keyboard-check (alts! [keyboard-chan (timeout 1)])]
        (recur (->> env
+                   collision-check
                    (adjust-direction keyboard-check)
                    adjust-coords))))))
        
 (defn- init-env [env]
   (let [[height width] (map deref (env :dimensions))]
-    (assoc env :coords [(random-coords height width)])))
+    (merge env {:coords [(random-coords height width)]
+                :fruit [(random-coords height width)]
+                :length 1})))
            
 (defn ^:export init []
   (let [snake (chan)
