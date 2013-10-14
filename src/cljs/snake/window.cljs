@@ -37,10 +37,10 @@
    (loop []
      (let [env (<! draw)]
        (fill-empty)
-       (doseq [[x y] (env :coords)]
-         (fill-square x y snake-cell-color))
        (doseq [[x y] (env :fruit)]
-         (fill-square x y fruit-cell-color)))
+         (fill-square x y fruit-cell-color))
+       (doseq [[x y] (env :coords)]
+         (fill-square x y snake-cell-color)))
      (recur))))
 
 (defn- init-window [draw]
