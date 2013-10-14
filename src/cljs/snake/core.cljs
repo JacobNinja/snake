@@ -1,6 +1,7 @@
 (ns snake.core
   (:require [cljs.core.async :as async
              :refer [<! >! chan timeout alts!]]
+            [clojure.set :refer [intersection]]
             [snake.window :as window]
             [clojure.browser.event :as event]
             [goog.events.KeyHandler :as key-handler]
@@ -45,11 +46,11 @@
     env))
 
 (defn- fruit-collision-check [env]
-  (let [fruit-collisions
-        (filter #(= (first (env :coords)) %) (env :fruit))]
+  (let [fruit-collisions 
+        (intersection (set (env :coords)) (set (env :fruit)))]
     (if-not (empty? fruit-collisions)
       (merge env {:length (inc (env :length))
-                  :fruit (remove (set fruit-collisions) (env :fruit))})
+                  :fruit (remove fruit-collisions (env :fruit))})
       env)))
 
 (defn- boundary-check [env]
