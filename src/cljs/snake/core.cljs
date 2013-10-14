@@ -44,7 +44,7 @@
     (assoc env :direction next-direction)
     env))
 
-(defn- collision-check [env]
+(defn- fruit-collision-check [env]
   (let [fruit-collisions
         (filter #(= (first (env :coords)) %) (env :fruit))]
     (if-not (empty? fruit-collisions)
@@ -60,6 +60,11 @@
       (assoc env :game-over "Out of bounds")
       env)))
 
+(defn- snake-collision-check [env]
+  (if (some #(> % 1) (vals (frequencies (env :coords))))
+    (assoc env :game-over "Snake collision")
+    env))
+
 (defn- game-loop [draw env]
   (go
    (>! draw env)
@@ -68,10 +73,11 @@
      (<! (timeout 300))
      (let [keyboard-check (alts! [keyboard-chan (timeout 1)])
            next-env (->> env
-                         collision-check
+                         fruit-collision-check
                          (adjust-direction keyboard-check)
                          adjust-coords
-                         boundary-check)]
+                         boundary-check
+                         snake-collision-check)]
        (if (env :game-over)
          (js/alert (env :game-over))
          (recur next-env))))))
