@@ -51,18 +51,30 @@
       (merge env {:length (inc (env :length))
                   :fruit (remove (set fruit-collisions) (env :fruit))})
       env)))
-    
+
+(defn- boundary-check [env]
+  (let [[x y] (first (env :coords))
+        [height width] (map deref (env :dimensions))]
+    (if (or (or (> y height) (< y 0))
+            (or (> x width) (< x 0)))
+      (assoc env :game-over "Out of bounds")
+      env)))
+
 (defn- game-loop [draw env]
   (go
    (>! draw env)
    (loop [env (assoc env :direction (<! keyboard-chan))]
      (>! draw env)
      (<! (timeout 300))
-     (let [keyboard-check (alts! [keyboard-chan (timeout 1)])]
-       (recur (->> env
-                   collision-check
-                   (adjust-direction keyboard-check)
-                   adjust-coords))))))
+     (let [keyboard-check (alts! [keyboard-chan (timeout 1)])
+           next-env (->> env
+                         collision-check
+                         (adjust-direction keyboard-check)
+                         adjust-coords
+                         boundary-check)]
+       (if (env :game-over)
+         (js/alert (env :game-over))
+         (recur next-env))))))
        
 (defn- init-env [env]
   (let [[height width] (map deref (env :dimensions))]
