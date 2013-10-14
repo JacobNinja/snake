@@ -52,11 +52,11 @@
                   :fruit (remove (set fruit-collisions) (env :fruit))})
       env)))
     
-(defn- game-loop [snake env]
+(defn- game-loop [draw env]
   (go
-   (>! snake env)
+   (>! draw env)
    (loop [env (assoc env :direction (<! keyboard-chan))]
-     (>! snake env)
+     (>! draw env)
      (<! (timeout 300))
      (let [keyboard-check (alts! [keyboard-chan (timeout 1)])]
        (recur (->> env
@@ -71,7 +71,7 @@
                 :length 1})))
            
 (defn ^:export init []
-  (let [snake (chan)
-        env (snake.window/init snake)]
+  (let [draw (chan)
+        env (snake.window/init draw)]
     (keyboard-listen)
-    (game-loop snake (init-env env))))
+    (game-loop draw (init-env env))))

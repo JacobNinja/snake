@@ -32,10 +32,10 @@
           x (range @width)]
     (fill-square x y empty-cell-color)))
 
-(defn- draw-snake-loop [snake]
+(defn- draw-snake-loop [draw]
   (go
    (loop []
-     (let [env (<! snake)]
+     (let [env (<! draw)]
        (fill-empty)
        (doseq [[x y] (env :coords)]
          (fill-square x y snake-cell-color))
@@ -43,15 +43,15 @@
          (fill-square x y fruit-cell-color)))
      (recur))))
 
-(defn- init-window [snake]
+(defn- init-window [draw]
   (set! (.-width canvas) (.-innerWidth js/window))
   (set! (.-height canvas) (.-innerHeight js/window))
   (reset! width (/ (.-width canvas) cell-size))
   (reset! height (/ (.-height canvas) cell-size))
-  (draw-snake-loop snake))
+  (draw-snake-loop draw))
   
-(defn init [snake]
-  (init-window snake)
-  (set! (.-onresize js/window) #(init-window snake))
+(defn init [draw-chan]
+  (init-window draw-chan)
+  (set! (.-onresize js/window) #(init-window draw-chan))
   {:dimensions [height width]})
 
