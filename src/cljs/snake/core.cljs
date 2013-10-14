@@ -79,7 +79,7 @@
                          boundary-check
                          snake-collision-check)]
        (if (env :game-over)
-         (js/alert (env :game-over))
+         (js/alert (str "Game over!" \newline (env :game-over)))
          (recur next-env))))))
        
 (defn- init-env [env]
