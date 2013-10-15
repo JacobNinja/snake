@@ -5,6 +5,8 @@
 
 (def canvas (.getElementById js/document "world"))
 (def context (.getContext canvas "2d"))
+(def level (.getElementById js/document "level"))
+
 (def cell-size 30)
 (def width (atom nil))
 (def height (atom nil))
@@ -37,6 +39,7 @@
    (loop []
      (let [env (<! draw)]
        (fill-empty)
+       (set! (.-textContent level) (env :level))
        (doseq [[x y] (env :fruit)]
          (fill-square x y fruit-cell-color))
        (doseq [[x y] (env :coords)]

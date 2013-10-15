@@ -15,6 +15,10 @@
   [(rand-nth (range width))
    (rand-nth (range height))])
 
+(defn- generate-random-fruit [env]
+  (let [[height width] (map deref (env :dimensions))]
+    (repeatedly 3 #(random-coords height width))))
+
 (defn- push-key [key]
   (let [key-number (.-keyCode key)
         valid-key (cond
@@ -74,18 +78,26 @@
     (assoc env :game-over "Snake collision")
     env))
 
+(defn- level-up [env]
+  (if (= (count (env :fruit)) 0)
+    (merge env {:fruit (generate-random-fruit env)
+                :level (inc (env :level))
+                :timer (/ (env :timer) 2)})
+    env))
+
 (defn- game-loop [draw env]
   (go
    (>! draw env)
    (loop [env (assoc env :direction (<! keyboard-chan))]
      (>! draw env)
-     (<! (timeout 300))
+     (<! (timeout (env :timer)))
      (let [keyboard-check (alts! [keyboard-chan (timeout 1)])
            next-env (->> env
                          fruit-collision-check
                          (adjust-direction keyboard-check)
                          adjust-coords
                          boundary-check
+                         level-up
                          snake-collision-check)]
        (if (next-env :game-over)
          (js/alert (str "Game over!" \newline (next-env :game-over)))
@@ -94,8 +106,10 @@
 (defn- init-env [env]
   (let [[height width] (map deref (env :dimensions))]
     (merge env {:coords [(random-coords height width)]
-                :fruit (repeatedly 3 #(random-coords height width))
-                :length 1})))
+                :fruit (generate-random-fruit env)
+                :length 1
+                :timer 300
+                :level 1})))
            
 (defn ^:export init []
   (let [draw (chan)

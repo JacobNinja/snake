@@ -13,8 +13,10 @@
         
         [:body {:onload "snake.core.init();"}
          [:div
-          [:canvas#world {:width 400 :height 400}]
-          [:script {:src  (str "js/" env ".js")}]]]))
+          [:div
+           "Level: " [:span {:id "level"} "1"]
+           [:canvas#world {:width 400 :height 400}]
+           [:script {:src  (str "js/" env ".js")}]]]]))
 
 (defroutes app-routes
   (GET "/" []
