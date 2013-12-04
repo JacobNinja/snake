@@ -1,7 +1,7 @@
 (ns snake.core
   (:require [cljs.core.async :as async
-             :refer [<! >! chan timeout alts!]]
-            [clojure.set :refer [intersection]]
+             :refer [<! >! chan timeout alts! sliding-buffer]]
+            [clojure.set :refer [intersection map-invert]]
             [snake.window :as window]
             [clojure.browser.event :as event]
             [goog.events.KeyHandler :as key-handler]
@@ -9,7 +9,14 @@
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (def keyboard (goog.events.KeyHandler. js/document))
-(def keyboard-chan (chan 1))
+(def keyboard-chan (chan (sliding-buffer 1)))
+
+(def directions {key-codes/UP [0 -1]
+                 key-codes/RIGHT [1 0]
+                 key-codes/DOWN [0 1]
+                 key-codes/LEFT [-1 0]})
+(def opposites {key-codes/DOWN key-codes/UP
+                key-codes/LEFT key-codes/RIGHT})
 
 (defn- random-coords [height width]
   [(rand-nth (range width))
@@ -20,41 +27,28 @@
     (repeatedly 3 #(random-coords height width))))
 
 (defn- push-key [key]
-  (let [key-number (.-keyCode key)
-        valid-key (cond
-                   (= key-number key-codes/UP) key-codes/UP
-                   (= key-number key-codes/RIGHT) key-codes/RIGHT
-                   (= key-number key-codes/DOWN) key-codes/DOWN
-                   (= key-number key-codes/LEFT) key-codes/LEFT)]
-    (when valid-key
+  (let [key-number (.-keyCode key)]
+    (when (directions key-number)
       (go (>! keyboard-chan key-number)))))
   
 (defn- keyboard-listen []
-  (go (event/listen keyboard "key" push-key)))
+  (event/listen keyboard "key" push-key))
                                     
 (defn- adjust-coords [env]
   (let [coords (env :coords)
         [x y] (first coords)
         direction (env :direction)]
     (assoc env :coords
-           (cons (cond
-                  (= direction key-codes/UP) [x (dec y)]
-                  (= direction key-codes/RIGHT) [(inc x) y]
-                  (= direction key-codes/DOWN) [x (inc y)]
-                  (= direction key-codes/LEFT) [(dec x) y])
+           (cons (vec (apply map + (list (first coords) (directions direction))))
                  (take (dec (env :length)) coords)))))
 
 (defn- valid-direction? [current-direction next-direction]
-  (let [opposites [[key-codes/UP key-codes/DOWN]
-                   [key-codes/LEFT key-codes/RIGHT]]]
-    (and (not (= current-direction next-direction))
-         (not (some #(or (= [current-direction next-direction] %)
-                         (= [next-direction current-direction] %)) opposites)))))
+  (every? false? (map #(= (% current-direction) next-direction)
+                      [opposites (map-invert opposites)])))
 
-(defn- adjust-direction [[next-direction chan] env]
-  (if (and (= chan keyboard-chan) 
-           (valid-direction? (env :direction) next-direction))
-    (assoc env :direction next-direction)
+(defn- adjust-direction [env]
+  (if (valid-direction? (env :direction) (env :next-direction))
+    (assoc env :direction (env :next-direction))
     env))
 
 (defn- fruit-collision-check [env]
@@ -91,10 +85,10 @@
    (loop [env (assoc env :direction (<! keyboard-chan))]
      (>! draw env)
      (<! (timeout (env :timer)))
-     (let [keyboard-check (alts! [keyboard-chan (timeout 1)])
-           next-env (->> env
+     (let [[direction _] (alts! [keyboard-chan (timeout 1)] :default (:direction env))
+           next-env (->> (assoc env :next-direction direction)
+                         adjust-direction
                          fruit-collision-check
-                         (adjust-direction keyboard-check)
                          adjust-coords
                          boundary-check
                          level-up
