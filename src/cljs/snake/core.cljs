@@ -6,7 +6,10 @@
             [clojure.browser.event :as event]
             [goog.events.KeyHandler :as key-handler]
             [goog.events.KeyCodes :as key-codes])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go]]
+                   [snake.macros :refer [defhandler]]))
+
+;; Keyboard
 
 (def keyboard (goog.events.KeyHandler. js/document))
 (def keyboard-chan (chan (sliding-buffer 1)))
@@ -18,14 +21,6 @@
 (def opposites {key-codes/DOWN key-codes/UP
                 key-codes/LEFT key-codes/RIGHT})
 
-(defn- random-coords [height width]
-  [(rand-nth (range width))
-   (rand-nth (range height))])
-
-(defn- generate-random-fruit [env]
-  (let [[height width] (map deref (env :dimensions))]
-    (repeatedly 3 #(random-coords height width))))
-
 (defn- push-key [key]
   (let [key-number (.-keyCode key)]
     (when (directions key-number)
@@ -33,51 +28,66 @@
   
 (defn- keyboard-listen []
   (event/listen keyboard "key" push-key))
-                                    
-(defn- adjust-coords [env]
-  (let [coords (env :coords)
-        [x y] (first coords)
-        direction (env :direction)]
-    (assoc env :coords
-           (cons (vec (apply map + (list (first coords) (directions direction))))
-                 (take (dec (env :length)) coords)))))
+
+;; Helper fns
+
+(defn- random-coords [height width]
+  [(rand-nth (range width))
+   (rand-nth (range height))])
+
+(defn- generate-random-fruit [[height width]]
+  (repeatedly 3 #(random-coords height width)))
+
+(defn- add-points [& pts]
+  (vec (apply map + pts)))
 
 (defn- valid-direction? [current-direction next-direction]
   (every? false? (map #(= (% current-direction) next-direction)
                       [opposites (map-invert opposites)])))
 
-(defn- adjust-direction [env]
-  (if (valid-direction? (env :direction) (env :next-direction))
-    (assoc env :direction (env :next-direction))
-    env))
+(defn- init-env [env]
+  (let [[height width] (map deref (env :dimensions))]
+    (merge env {:coords [(random-coords height width)]
+                :fruit (generate-random-fruit [height width])
+                :length 1
+                :timer 300
+                :level 1})))
 
-(defn- fruit-collision-check [env]
-  (let [fruit-collisions 
-        (intersection (set (env :coords)) (set (env :fruit)))]
-    (if-not (empty? fruit-collisions)
-      (merge env {:length (inc (env :length))
-                  :fruit (remove fruit-collisions (env :fruit))})
-      env)))
+;; Handlers
 
-(defn- boundary-check [env]
-  (let [[x y] (first (env :coords))
-        [height width] (map deref (env :dimensions))]
-    (if (or (or (> y height) (< y 0))
-            (or (> x width) (< x 0)))
-      (assoc env :game-over "Out of bounds")
-      env)))
+(defhandler adjust-coords [coords direction length]
+  {:coords
+   (cons (add-points (first coords) (directions direction))
+         (take (dec length) coords))})
 
-(defn- snake-collision-check [env]
-  (if (some #(> % 1) (vals (frequencies (env :coords))))
-    (assoc env :game-over "Snake collision")
-    env))
+(defhandler adjust-direction [direction next-direction]
+  (when (valid-direction? direction next-direction)
+    {:direction next-direction}))
 
-(defn- level-up [env]
-  (if (= (count (env :fruit)) 0)
-    (merge env {:fruit (generate-random-fruit env)
-                :level (inc (env :level))
-                :timer (/ (env :timer) 2)})
-    env))
+(defhandler fruit-collision-check [coords fruit length]
+  (let [fruit-collisions (intersection (set coords) (set fruit))]
+    (when-not (empty? fruit-collisions)
+      {:length (inc length)
+       :fruit (remove fruit-collisions fruit)})))
+
+(defhandler boundary-check [coords dimensions]
+  (let [[x y] (first coords)
+        [height width] (map deref dimensions)]
+    (when (or (or (> y height) (< y 0))
+              (or (> x width) (< x 0)))
+      {:game-over "Out of bounds"})))
+
+(defhandler snake-collision-check [coords]
+  (when (some #(> % 1) (vals (frequencies coords)))
+    {:game-over "Snake collision"}))
+
+(defhandler level-up [fruit level timer dimensions]
+  (when (zero? (count fruit))
+    {:fruit (generate-random-fruit (map deref dimensions))
+     :level (inc level)
+     :timer (/ timer 2)}))
+
+;; Game loop and initialization
 
 (defn- game-loop [draw env]
   (go
@@ -96,15 +106,7 @@
        (if (next-env :game-over)
          (js/alert (str "Game over!" \newline (next-env :game-over)))
          (recur next-env))))))
-       
-(defn- init-env [env]
-  (let [[height width] (map deref (env :dimensions))]
-    (merge env {:coords [(random-coords height width)]
-                :fruit (generate-random-fruit env)
-                :length 1
-                :timer 300
-                :level 1})))
-           
+
 (defn ^:export init []
   (let [draw (chan)
         env (snake.window/init draw)]
