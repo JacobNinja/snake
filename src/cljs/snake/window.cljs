@@ -1,7 +1,7 @@
 (ns snake.window
   (:require [cljs.core.async :as async
              :refer [>! <! chan timeout alts!]])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go-loop]]))
 
 (def canvas (.getElementById js/document "world"))
 (def context (.getContext canvas "2d"))
@@ -34,17 +34,22 @@
           x (range @width)]
     (fill-square x y empty-cell-color)))
 
+(defn- set-level [num]
+  (set! (.-textContent level) num))
+
+(defn- fill [coll color]
+  (doseq [[x y] coll]
+    (fill-square x y color)))
+
 (defn- draw-snake-loop [draw]
-  (go
-   (loop []
-     (let [env (<! draw)]
-       (fill-empty)
-       (set! (.-textContent level) (env :level))
-       (doseq [[x y] (env :fruit)]
-         (fill-square x y fruit-cell-color))
-       (doseq [[x y] (env :coords)]
-         (fill-square x y snake-cell-color)))
-     (recur))))
+  (go-loop []
+           (let [env (<! draw)
+                 {:keys [level fruit coords]} env]
+             (fill-empty)
+             (set-level level)
+             (fill fruit fruit-cell-color)
+             (fill coords snake-cell-color))
+           (recur)))
 
 (defn- init-window [draw]
   (set! (.-width canvas) (.-innerWidth js/window))
