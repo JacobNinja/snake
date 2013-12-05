@@ -8,12 +8,18 @@
 (def level (.getElementById js/document "level"))
 
 (def cell-size 30)
+(def level-offset 30)
+
 (def width (atom nil))
 (def height (atom nil))
+
 (def empty-cell-color "#eee")
 (def border-color "#cdcdcd")
 (def snake-cell-color "666")
 (def fruit-cell-color "#cc0000")
+
+(defn- fit-to-screen [size]
+  (- size (* (mod size cell-size)) 2))
 
 (defn- fill-square [x y color]
   (set! (.-fillStyle context) color)
@@ -52,8 +58,8 @@
            (recur)))
 
 (defn- init-window [draw]
-  (set! (.-width canvas) (.-innerWidth js/window))
-  (set! (.-height canvas) (.-innerHeight js/window))
+  (set! (.-width canvas) (fit-to-screen (.-innerWidth js/window)))
+  (set! (.-height canvas) (- (fit-to-screen (.-innerHeight js/window)) level-offset))
   (reset! width (/ (.-width canvas) cell-size))
   (reset! height (/ (.-height canvas) cell-size))
   (draw-snake-loop draw))
