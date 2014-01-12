@@ -15,8 +15,10 @@
   :cljsbuild {:builds
               {:dev
                {:source-paths ["src/cljs"]
-                :compiler {:output-to "resources/public/js/dev.js"
-                           :optimizations :whitespace
+                :compiler {:output-dir "resources/public/js/out"
+                           :output-to "resources/public/js/dev.js"
+                           :source-map "resources/public/js/dev.js.map"
+                           :optimizations :none
                            :pretty-print true}}
                :prod
                 {:source-paths ["src/cljs"]
