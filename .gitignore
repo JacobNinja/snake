@@ -4,6 +4,7 @@
 /checkouts
 /resources/public/js/dev.js
 /resources/public/js/prod.js
+/resources/public/js/out/
 pom.xml
 pom.xml.asc
 *.jar
@@ -12,6 +13,7 @@ pom.xml.asc
 .lein-failures
 .lein-plugins
 .lein-repl-history
+.nrepl-port
 
 # emacs
 \#*#
