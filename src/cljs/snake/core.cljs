@@ -1,18 +1,24 @@
 (ns snake.core
   (:require [cljs.core.async :as async
-             :refer [<! >! chan timeout alts! sliding-buffer]]
+             :refer [<! >! chan timeout alts! sliding-buffer put! filter< take!]]
             [clojure.set :refer [intersection map-invert]]
             [snake.window :as window]
             [clojure.browser.event :as event]
             [goog.events.KeyHandler :as key-handler]
             [goog.events.KeyCodes :as key-codes])
   (:require-macros [cljs.core.async.macros :refer [go]]
-                   [snake.macros :refer [defhandler]]))
+                   [snake.macros :refer [defhandler defasync]]))
+
+(def draw-chan (chan))
+
+;; History
+
+(def history (atom []))
+
+(defn- save-history! [next-env]
+  (swap! history conj next-env))
 
 ;; Keyboard
-
-(def keyboard (goog.events.KeyHandler. js/document))
-(def keyboard-chan (chan (sliding-buffer 1)))
 
 (def directions {key-codes/UP [0 -1]
                  key-codes/RIGHT [1 0]
@@ -21,13 +27,20 @@
 (def opposites {key-codes/DOWN key-codes/UP
                 key-codes/LEFT key-codes/RIGHT})
 
-(defn- push-key [key]
-  (let [key-number (.-keyCode key)]
-    (when (directions key-number)
-      (go (>! keyboard-chan key-number)))))
-  
+(defn- topic [v]
+  (if (directions v)
+    :direction
+    :command))
+
+(def keyboard (goog.events.KeyHandler. js/document))
+(def keyboard-chan (chan (sliding-buffer 1)))
+(def keyboard-pub (async/pub keyboard-chan topic))
+
+(def direction-chan (async/sub keyboard-pub :direction (chan (sliding-buffer 1))))
+(def command-chan (async/sub keyboard-pub :command (chan (sliding-buffer 1))))
+
 (defn- keyboard-listen []
-  (event/listen keyboard "key" push-key))
+  (event/listen keyboard "key" #(put! keyboard-chan (.-keyCode %))))
 
 ;; Helper fns
 
@@ -45,14 +58,6 @@
   (every? false? (map #(= (% current-direction) next-direction)
                       [opposites (map-invert opposites)])))
 
-(defn- init-env [env]
-  (let [[height width] (map deref (env :dimensions))]
-    (merge env {:coords [(random-coords height width)]
-                :fruit (generate-random-fruit [height width])
-                :length 1
-                :timer 300
-                :level 1})))
-
 ;; Handlers
 
 (defhandler adjust-coords [coords direction length]
@@ -60,9 +65,11 @@
    (cons (add-points (first coords) (directions direction))
          (take (dec length) coords))})
 
-(defhandler adjust-direction [direction next-direction]
-  (when (valid-direction? direction next-direction)
-    {:direction next-direction}))
+(defn- adjust-direction [{:keys [direction] :as env} key]
+  (merge env
+         (when (and (directions key)
+                    (valid-direction? direction key))
+           {:direction key})))
 
 (defhandler fruit-collision-check [coords fruit length]
   (let [fruit-collisions (intersection (set coords) (set fruit))]
@@ -87,28 +94,63 @@
      :level (inc level)
      :timer (/ timer 2)}))
 
+(defn- tick [env key]
+  (-> env
+       (adjust-direction key)
+       fruit-collision-check
+       adjust-coords
+       boundary-check
+       level-up
+       snake-collision-check))
+
+;; Game modes
+
+(defasync pause-mode [undo-history]
+  (loop [frame (dec (count undo-history))]
+    (>! draw-chan (nth undo-history frame))
+    (let [key (<! command-chan)]
+      (condp = key
+        key-codes/B (recur (if (zero? (dec frame))
+                             frame
+                             (dec frame)))
+        key-codes/F (recur (if (< (inc frame) (count undo-history))
+                             (inc frame)
+                             frame))
+        key-codes/SPACE (vec (take (inc frame) undo-history))
+        (recur frame)))))
+
+(defasync pause! []
+  (reset! history (<! (pause-mode @history)))
+  (last @history))
+
 ;; Game loop and initialization
 
-(defn- game-loop [draw env]
+(defn- init-env [env]
+  (let [[height width] (map deref (env :dimensions))]
+    (merge env {:coords [(random-coords height width)]
+                :fruit (generate-random-fruit [height width])
+                :length 1
+                :timer 300
+                :level 1})))
+
+(defn- game-loop [env]
   (go
-   (>! draw env)
-   (loop [env (assoc env :direction (<! keyboard-chan))]
-     (>! draw env)
+   (save-history! env)
+   (>! draw-chan env)
+   (save-history! (assoc env :direction (<! direction-chan)))
+   (loop [env (last @history)]
+     (>! draw-chan env)
      (<! (timeout (env :timer)))
-     (let [[direction _] (alts! [keyboard-chan (timeout 1)] :default (:direction env))
-           next-env (->> (assoc env :next-direction direction)
-                         adjust-direction
-                         fruit-collision-check
-                         adjust-coords
-                         boundary-check
-                         level-up
-                         snake-collision-check)]
+     (let [[key _] (alts! [direction-chan command-chan (timeout 1)] :default (:direction env))
+           next-env (if (= key key-codes/SPACE)
+                      (<! (pause!))
+                      (tick env key))]
+       (save-history! next-env)
        (if (next-env :game-over)
          (js/alert (str "Game over!" \newline (next-env :game-over)))
          (recur next-env))))))
 
 (defn ^:export init []
-  (let [draw (chan)
-        env (snake.window/init draw)]
-    (keyboard-listen)
-    (game-loop draw (init-env env))))
+  (keyboard-listen)
+  (game-loop (init-env
+              (snake.window/init draw-chan))))
