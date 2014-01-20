@@ -62,8 +62,9 @@
 
 (defhandler adjust-coords [coords direction length]
   {:coords
-   (cons (add-points (first coords) (directions direction))
-         (take (dec length) coords))})
+   (take length
+         (cons (add-points (first coords) (directions direction))
+               coords))})
 
 (defn- adjust-direction [{:keys [direction] :as env} key]
   (merge env
