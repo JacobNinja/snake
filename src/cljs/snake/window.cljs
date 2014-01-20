@@ -10,9 +10,6 @@
 (def cell-size 30)
 (def level-offset 30)
 
-(def width (atom nil))
-(def height (atom nil))
-
 (def empty-cell-color "#eee")
 (def border-color "#cdcdcd")
 (def snake-cell-color "666")
@@ -35,9 +32,9 @@
                cell-size
                cell-size))
 
-(defn- fill-empty []
-  (doseq [y (range @height)
-          x (range @width)]
+(defn- fill-empty [[height width]]
+  (doseq [y (range height)
+          x (range width)]
     (fill-square x y empty-cell-color)))
 
 (defn- set-level [num]
@@ -47,25 +44,21 @@
   (doseq [[x y] coll]
     (fill-square x y color)))
 
-(defn- draw-snake-loop [draw]
+(defn- draw-snake-loop [draw dimensions]
   (go-loop []
            (let [env (<! draw)
                  {:keys [level fruit coords]} env]
-             (fill-empty)
+             (fill-empty dimensions)
              (set-level level)
              (fill fruit fruit-cell-color)
              (fill coords snake-cell-color))
            (recur)))
 
-(defn- init-window [draw]
-  (set! (.-width canvas) (fit-to-screen (.-innerWidth js/window)))
+(defn init [draw]
   (set! (.-height canvas) (- (fit-to-screen (.-innerHeight js/window)) level-offset))
-  (reset! width (/ (.-width canvas) cell-size))
-  (reset! height (/ (.-height canvas) cell-size))
-  (draw-snake-loop draw))
-  
-(defn init [draw-chan]
-  (init-window draw-chan)
-  (set! (.-onresize js/window) #(init-window draw-chan))
-  {:dimensions [height width]})
+  (set! (.-width canvas) (fit-to-screen (.-innerWidth js/window)))
+  (let [dimensions (map #(int (/ % cell-size)) [(.-height canvas) (.-width canvas)])]
+    (draw-snake-loop draw dimensions)
+    dimensions))
+
 

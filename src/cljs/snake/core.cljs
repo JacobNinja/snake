@@ -44,12 +44,12 @@
 
 ;; Helper fns
 
-(defn- random-coords [height width]
+(defn- random-coords [[height width]]
   [(rand-nth (range width))
    (rand-nth (range height))])
 
-(defn- generate-random-fruit [[height width]]
-  (repeatedly 3 #(random-coords height width)))
+(defn- generate-random-fruit [dimensions]
+  (repeatedly 3 #(random-coords dimensions)))
 
 (defn- add-points [& pts]
   (vec (apply map + pts)))
@@ -79,7 +79,7 @@
 
 (defhandler boundary-check [coords dimensions]
   (let [[x y] (first coords)
-        [height width] (map deref dimensions)]
+        [height width] dimensions]
     (when (or (or (> y height) (< y 0))
               (or (> x width) (< x 0)))
       {:game-over "Out of bounds"})))
@@ -90,7 +90,7 @@
 
 (defhandler level-up [fruit level timer dimensions]
   (when (zero? (count fruit))
-    {:fruit (generate-random-fruit (map deref dimensions))
+    {:fruit (generate-random-fruit dimensions)
      :level (inc level)
      :timer (/ timer 2)}))
 
@@ -125,13 +125,13 @@
 
 ;; Game loop and initialization
 
-(defn- init-env [env]
-  (let [[height width] (map deref (env :dimensions))]
-    (merge env {:coords [(random-coords height width)]
-                :fruit (generate-random-fruit [height width])
-                :length 1
-                :timer 300
-                :level 1})))
+(defn- init-env [dimensions]
+  {:coords [(random-coords dimensions)]
+   :fruit (generate-random-fruit dimensions)
+   :length 1
+   :timer 300
+   :level 1
+   :dimensions dimensions})
 
 (defn- game-loop [env]
   (go
