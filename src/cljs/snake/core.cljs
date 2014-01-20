@@ -55,8 +55,8 @@
   (vec (apply map + pts)))
 
 (defn- valid-direction? [current-direction next-direction]
-  (every? false? (map #(= (% current-direction) next-direction)
-                      [opposites (map-invert opposites)])))
+  (and (not= (opposites current-direction) next-direction)
+       (not= ((map-invert opposites) current-direction) next-direction)))
 
 ;; Handlers
 
