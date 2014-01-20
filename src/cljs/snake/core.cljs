@@ -123,6 +123,11 @@
   (reset! history (<! (pause-mode @history)))
   (last @history))
 
+(defn- game-over! [env]
+  (swap! history pop)
+  (js/alert (str "Game over!" \newline (env :game-over)))
+  (pause!))
+
 ;; Game loop and initialization
 
 (defn- init-env [dimensions]
@@ -145,9 +150,9 @@
                       (<! (pause!))
                       (tick env key))]
        (save-history! next-env)
-       (if (next-env :game-over)
-         (js/alert (str "Game over!" \newline (next-env :game-over)))
-         (recur next-env))))))
+       (recur (if (next-env :game-over)
+                (<! (game-over! next-env))
+                next-env))))))
 
 (defn ^:export init []
   (keyboard-listen)
