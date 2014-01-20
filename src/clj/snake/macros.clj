@@ -7,7 +7,7 @@
        (let [~@(interleave bindings value-bindings)]
          (merge ~env-sym ~@forms)))))
 
-(defmacro defasync [name bindings & forms]
+(defmacro defchan [name bindings & forms]
   `(defn ~name ~bindings
      (let [out# (cljs.core.async/chan)]
        (cljs.core.async.macros/go

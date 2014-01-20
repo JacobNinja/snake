@@ -7,7 +7,7 @@
             [goog.events.KeyHandler :as key-handler]
             [goog.events.KeyCodes :as key-codes])
   (:require-macros [cljs.core.async.macros :refer [go]]
-                   [snake.macros :refer [defhandler defasync]]))
+                   [snake.macros :refer [defhandler defchan]]))
 
 (def draw-chan (chan))
 
@@ -105,7 +105,7 @@
 
 ;; Game modes
 
-(defasync pause-mode [undo-history]
+(defchan undo-mode [undo-history]
   (loop [frame (dec (count undo-history))]
     (>! draw-chan (nth undo-history frame))
     (let [key (<! command-chan)]
@@ -119,8 +119,8 @@
         key-codes/SPACE (vec (take (inc frame) undo-history))
         (recur frame)))))
 
-(defasync pause! []
-  (reset! history (<! (pause-mode @history)))
+(defchan pause! []
+  (reset! history (<! (undo-mode @history)))
   (last @history))
 
 (defn- game-over! [env]
