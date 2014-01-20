@@ -44,10 +44,10 @@
   (doseq [[x y] coll]
     (fill-square x y color)))
 
-(defn- draw-snake-loop [draw dimensions]
+(defn- draw-snake-loop [draw]
   (go-loop []
            (let [env (<! draw)
-                 {:keys [level fruit coords]} env]
+                 {:keys [level fruit coords dimensions]} env]
              (fill-empty dimensions)
              (set-level level)
              (fill fruit fruit-cell-color)
@@ -55,10 +55,9 @@
            (recur)))
 
 (defn init [draw]
+  (draw-snake-loop draw)
   (set! (.-height canvas) (- (fit-to-screen (.-innerHeight js/window)) level-offset))
   (set! (.-width canvas) (fit-to-screen (.-innerWidth js/window)))
-  (let [dimensions (map #(int (/ % cell-size)) [(.-height canvas) (.-width canvas)])]
-    (draw-snake-loop draw dimensions)
-    dimensions))
+  (map #(int (/ % cell-size)) [(.-height canvas) (.-width canvas)]))
 
 
