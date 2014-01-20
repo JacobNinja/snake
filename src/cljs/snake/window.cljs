@@ -6,6 +6,7 @@
 (def canvas (.getElementById js/document "world"))
 (def context (.getContext canvas "2d"))
 (def level (.getElementById js/document "level"))
+(def frame (.getElementById js/document "frame"))
 
 (def cell-size 30)
 (def level-offset 30)
@@ -37,8 +38,11 @@
           x (range width)]
     (fill-square x y empty-cell-color)))
 
-(defn- set-level [num]
-  (set! (.-textContent level) num))
+(defn- set-level! [n]
+  (set! (.-textContent level) n))
+
+(defn- set-frame! [n]
+  (set! (.-textContent frame) n))
 
 (defn- fill [coll color]
   (doseq [[x y] coll]
@@ -47,9 +51,10 @@
 (defn- draw-snake-loop [draw]
   (go-loop []
            (let [env (<! draw)
-                 {:keys [level fruit coords dimensions]} env]
+                 {:keys [level fruit coords dimensions frame]} env]
              (fill-empty dimensions)
-             (set-level level)
+             (set-level! level)
+             (set-frame! frame)
              (fill fruit fruit-cell-color)
              (fill coords snake-cell-color))
            (recur)))

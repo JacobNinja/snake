@@ -24,6 +24,8 @@
                [:div
                 [:div
                  "Level: " [:span {:id "level"} "1"]
+                 (repeat 5 "&nbsp;")
+                 "Frame: " [:span {:id "frame"} "1"]
                  [:canvas#world {:width 400 :height 400}]]]]
               scripts))))
 

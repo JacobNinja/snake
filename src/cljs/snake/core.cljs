@@ -94,14 +94,18 @@
      :level (inc level)
      :timer (/ timer 2)}))
 
+(defhandler increase-frame [frame]
+  {:frame (inc frame)})
+
 (defn- tick [env key]
   (-> env
-       (adjust-direction key)
-       fruit-collision-check
-       adjust-coords
-       boundary-check
-       level-up
-       snake-collision-check))
+      (adjust-direction key)
+      fruit-collision-check
+      adjust-coords
+      increase-frame
+      boundary-check
+      level-up
+      snake-collision-check))
 
 ;; Game modes
 
@@ -136,6 +140,7 @@
    :length 1
    :timer 300
    :level 1
+   :frame 1
    :dimensions dimensions})
 
 (defn- game-loop [env]
