@@ -80,8 +80,8 @@
 (defhandler boundary-check [coords dimensions]
   (let [[x y] (first coords)
         [height width] dimensions]
-    (when (or (or (> y height) (< y 0))
-              (or (> x width) (< x 0)))
+    (when (or (or (>= y height) (< y 0))
+              (or (>= x width) (< x 0)))
       {:game-over "Out of bounds"})))
 
 (defhandler snake-collision-check [coords]
@@ -110,7 +110,7 @@
     (>! draw-chan (nth undo-history frame))
     (let [key (<! command-chan)]
       (condp = key
-        key-codes/B (recur (if (zero? (dec frame))
+        key-codes/B (recur (if (< (dec frame) 0)
                              frame
                              (dec frame)))
         key-codes/F (recur (if (< (inc frame) (count undo-history))
@@ -135,7 +135,6 @@
 
 (defn- game-loop [env]
   (go
-   (save-history! env)
    (>! draw-chan env)
    (save-history! (assoc env :direction (<! direction-chan)))
    (loop [env (last @history)]
