@@ -1,6 +1,6 @@
 (ns snake.window
   (:require [cljs.core.async :as async
-             :refer [>! <! chan timeout alts!]])
+             :refer [>! <!]])
   (:require-macros [cljs.core.async.macros :refer [go-loop]]))
 
 (def canvas (.getElementById js/document "world"))

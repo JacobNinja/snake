@@ -1,6 +1,6 @@
 (ns snake.core
   (:require [cljs.core.async :as async
-             :refer [<! >! chan timeout alts! sliding-buffer put! filter< take!]]
+             :refer [<! >! chan timeout alts! sliding-buffer put!]]
             [clojure.set :refer [intersection map-invert]]
             [snake.window :as window]
             [clojure.browser.event :as event]
