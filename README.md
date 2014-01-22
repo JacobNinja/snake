@@ -11,7 +11,10 @@ Snake game written in Clojurescript using core.async
 2. ```lein cljsbuild once```
 3. ```lein ring server```
 
-Snake will now be available at ```http://localhost:3000/dev```
+Snake will now be available at ```http://localhost:3000/``` 
+
+Use ```http://localhost:3000/dev``` for debugging with source maps
+
 
 ## License
 
